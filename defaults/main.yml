@@ -1,0 +1,4 @@
+---
+
+restic_config_dir: "{{ ansible_user_dir }}/.config/restic"
+restic_passwd_file: "{{ restic_config_dir }}/passwd"

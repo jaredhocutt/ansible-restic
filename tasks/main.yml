@@ -1,0 +1,77 @@
+---
+
+- name: Create yum repository
+  yum_repository:
+    name: copart-restic
+    description: "[COPR] Restic - $basearch"
+    baseurl: https://copr-be.cloud.fedoraproject.org/results/copart/restic/fedora-$releasever-$basearch/
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: https://copr-be.cloud.fedoraproject.org/results/copart/restic/pubkey.gpg
+    state: present
+  become: yes
+
+- name: Install restic
+  dnf:
+    name: restic
+    state: present
+  become: yes
+
+- name: Create restic config directory
+  file:
+    path: "{{ restic_config_dir }}"
+    state: directory
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+    mode: 0700
+
+- name: Create restic password file
+  copy:
+    dest: "{{ restic_passwd_file }}"
+    content: "{{ restic_passwd }}"
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+    mode: 0600
+    backup: yes
+
+- name: Initialize restic
+  command: /usr/bin/restic --repo {{ restic_repo }} --password-file '{{ restic_passwd_file }}' init
+  environment: "{{ restic_env_vars }}"
+  register: init_restic
+  failed_when:
+    - init_restic.rc != 0
+    - "'config already exists' not in init_restic.stderr"
+  changed_when: init_restic.rc == 0
+
+- name: Create backup service
+  template:
+    src: restic-backup.service.j2
+    dest: /etc/systemd/system/restic-backup.service
+    owner: root
+    group: root
+    mode: 0644
+  register: backup_service
+  become: yes
+
+- name: Create backup timer
+  copy:
+    src: restic-backup.timer
+    dest: /etc/systemd/system/restic-backup.timer
+    owner: root
+    group: root
+    mode: 0644
+  register: backup_timer
+  become: yes
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+  when: backup_service.changed or backup_timer.changed
+  become: yes
+
+- name: Start and enable backup timer
+  systemd:
+    name: restic-backup.timer
+    state: started
+    enabled: yes
+  become: yes

@@ -1,0 +1,12 @@
+galaxy_info:
+  author: Jared Hocutt
+  description: Installs restic and configures daily backup of the home directory of the user.
+
+  license: BSD
+
+  min_ansible_version: 2.3
+
+  platforms:
+  - name: Fedora
+    versions:
+    - 27
