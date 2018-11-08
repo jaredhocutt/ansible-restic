@@ -6,8 +6,6 @@ Type=simple
 Nice=19
 IOSchedulingClass=2
 IOSchedulingPriority=7
-User={{ ansible_user_uid }}
-Group={{ ansible_user_gid }}
 {% if restic_env_vars %}
 {% for key, value in restic_env_vars.iteritems() %}
 Environment={{ key }}={{ value }}
