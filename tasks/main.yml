@@ -1,77 +1,65 @@
 ---
+# tasks file for restic
 
-- name: Create yum repository
-  yum_repository:
-    name: copart-restic
-    description: "[COPR] Restic - $basearch"
-    baseurl: https://copr-be.cloud.fedoraproject.org/results/copart/restic/fedora-$releasever-$basearch/
-    enabled: yes
-    gpgcheck: yes
-    gpgkey: https://copr-be.cloud.fedoraproject.org/results/copart/restic/pubkey.gpg
-    state: present
-  become: yes
-
-- name: Install restic
+- name: Install Restic
   dnf:
     name: restic
     state: present
   become: yes
 
-- name: Create restic config directory
-  file:
-    path: "{{ restic_config_dir }}"
-    state: directory
-    owner: "{{ ansible_user_uid }}"
-    group: "{{ ansible_user_gid }}"
-    mode: 0700
-
-- name: Create restic password file
-  copy:
-    dest: "{{ restic_passwd_file }}"
-    content: "{{ restic_passwd }}"
-    owner: "{{ ansible_user_uid }}"
-    group: "{{ ansible_user_gid }}"
-    mode: 0600
-    backup: yes
-
-- name: Initialize restic
-  command: /usr/bin/restic --repo {{ restic_repo }} --password-file '{{ restic_passwd_file }}' init
-  environment: "{{ restic_env_vars }}"
-  register: init_restic
+- name: Initialize Restic repos
+  command: >-
+    /usr/bin/restic
+    --repo {{ item.repo }}
+    init
+  environment: "{{ item.env_vars }}"
+  loop: "{{ restic_repos }}"
+  register: r_restic_init
   failed_when:
-    - init_restic.rc != 0
-    - "'config already exists' not in init_restic.stderr"
-  changed_when: init_restic.rc == 0
-
-- name: Create backup service
-  template:
-    src: restic-backup.service.j2
-    dest: /etc/systemd/system/restic-backup.service
-    owner: root
-    group: root
-    mode: 0644
-  register: backup_service
+    - r_restic_init.rc != 0
+    - "'config already exists' not in r_restic_init.stderr"
+  changed_when: r_restic_init.rc == 0
   become: yes
 
-- name: Create backup timer
-  copy:
-    src: restic-backup.timer
-    dest: /etc/systemd/system/restic-backup.timer
+- name: Create Restic services
+  template:
+    src: restic.service.j2
+    dest: /etc/systemd/system/restic-{{ item.name }}.service
+    owner: root
+    group: root
+    mode: 0600
+  vars:
+    name: "{{ item.name }}"
+    env_vars: "{{ item.env_vars | default([]) }}"
+    restic_repo: "{{ item.repo }}"
+    restic_flags: "{{ item.restic_flags | default([]) }}"
+    restic_files: "{{ item.files }}"
+  loop: "{{ restic_repos }}"
+  register: r_restic_service
+  become: yes
+
+- name: Create Restic timers
+  template:
+    src: restic.timer.j2
+    dest: /etc/systemd/system/restic-{{ item.name }}.timer
     owner: root
     group: root
     mode: 0644
-  register: backup_timer
+  vars:
+    name: "{{ item.name }}"
+  loop: "{{ restic_repos }}"
+  register: r_restic_timer
   become: yes
 
 - name: Reload systemd
   systemd:
     daemon_reload: yes
-  when: backup_service.changed or backup_timer.changed
+  when: r_restic_service.changed or r_restic_timer.changed
   become: yes
 
-- name: Start and enable backup timer
+- name: Enable the Restic timer
   systemd:
-    name: restic-backup.timer
-    state: started
+    name: restic-{{ item.name }}.timer
     enabled: yes
+  loop: "{{ restic_repos }}"
   become: yes

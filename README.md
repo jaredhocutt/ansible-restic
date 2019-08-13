@@ -1,21 +1,20 @@
 # Restic
 
-Installs restic and configures daily backup of the home directory of the user.
+This role handles installing and configuring Restic, including systemd services
+and timers to automatically run Restic.
 
 ## Requirements
 
-None
+The hosts you are targeting should have the following packages:
+
+- python >= 2.6
+- python-dnf
 
 ## Role Variables
 
-| Variable             | Required           | Default                                 | Description                                                                                                                                   |
-| -------------------- | ------------------ | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `restic_repo`        | :heavy_check_mark: |                                         | The repo for restic to use. The format of this option can be found at <https://restic.readthedocs.io/en/latest/030_preparing_a_new_repo.html> |
-| `restic_passwd`      | :heavy_check_mark: |                                         | The password used to encrypt your data.                                                                                                       |
-| `restic_env_vars`    | :x:                |                                         | Environment variables needed for the repo type you've chosen (see example playbook below).                                                    |
-| `restic_config_dir`  | :x:                | `{{ ansible_user_dir }}/.config/restic` | The directory to use for restic config information                                                                                            |
-| `restic_passwd_file` | :x:                | `{{ restic_config_dir }}/passwd`        | The file to save the `restic_passwd`                                                                                                          |
-
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| restic_repos | &#9989; | `[]` | A list of dictionaries defining a restic repo and what files/directories to backup. The required dictionary keys are `name`, `repo`, and `files`.<br><br>See example below for format. |
 
 ## Dependencies
 
@@ -24,17 +23,26 @@ None
 ## Example Playbook
 
 ```yaml
-- hosts: localhost
-  vars:
-    b2_account_id: 893678543f31
-    b2_account_key: 89367dc23f3111e8b4670ed5f89f718b3f3111367d
-    b2_bucket: my-restic-backup
-
-    restic_passwd: password123
-    restic_repo: "b2:{{ b2_bucket }}:{{ ansible_hostname }}"
-    restic_env_vars:
-      B2_ACCOUNT_ID: "{{ b2_account_id }}"
-      B2_ACCOUNT_KEY: "{{ b2_account_key }}"
+- hosts: servers
   roles:
-      - jaredhocutt.restic
+    - role: jaredhocutt.restic
+      vars:
+        restic_repos:
+          - name: b2
+            repo: "b2:bucketname:path/to/repo"
+            env_vars:
+              B2_ACCOUNT_ID: abcdef
+              B2_ACCOUNT_KEY: ghijklm
+              RESTIC_PASSWORD: password
+            files:
+              - /home/user1
+              - /home/user2
 ```
+
+## License
+
+MIT
+
+## Author Information
+
+Jared Hocutt (@jaredhocutt)

@@ -1,2 +1,4 @@
 ---
 # vars file for restic
+
+restic_repos: []

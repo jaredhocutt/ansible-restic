@@ -1,0 +1,14 @@
+[Unit]
+Description=Perform restic backup [{{ name }}]
+
+[Service]
+Type=simple
+Nice=19
+IOSchedulingClass=2
+IOSchedulingPriority=7
+
+{% for key in env_vars %}
+Environment={{ key }}={{ env_vars[key] }}
+{% endfor %}
+
+ExecStart=/usr/bin/restic --repo {{ restic_repo }} backup {{ restic_flags | join(' ') }} {{ restic_files | join(' ') }}
