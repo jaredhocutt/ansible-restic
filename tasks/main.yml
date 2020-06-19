@@ -17,7 +17,7 @@
   register: r_restic_init
   failed_when:
     - r_restic_init.rc != 0
-    - "'config already exists' not in r_restic_init.stderr"
+    - "'already exists' not in r_restic_init.stderr"
   changed_when: r_restic_init.rc == 0
   become: yes
 
